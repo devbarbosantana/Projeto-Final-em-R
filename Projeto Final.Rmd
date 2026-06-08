@@ -1,0 +1,245 @@
+---
+title: "Projeto Final CPAD"
+author: "Jair Barbosa Santana"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Conjunto de Dados: Brazilian E-Commerce Public Dataset by Olist (Dados de comércio eletrônico brasileiro da Olist).  
+
+## 1. Introdução {.tabset}
+
+### 1.1
+A Declaração do Problema e sua Relevância:  
+  
+O problema: O impacto dos atrasos logísticos na satisfação dos consumidores no e-commerce brasileiro.
+Por que devemos nos interessar? A logística em um país de dimensões continentais como o Brasil é um desafio imenso. Entregas atrasadas são a principal causa de avaliações negativas. Analisar isso é fundamental porque a reputação de uma loja virtual dita sua sobrevivência; entender onde e por que os atrasos ocorrem permite que empresas reduzam custos operacionais, melhorem a retenção de clientes e aumentem suas vendas a longo prazo.
+
+### 1.2
+Abordagem (Dados e Metodologia):  
+  
+Como abordar: Utilizaremos o Brazilian E-Commerce Public Dataset by Olist, que contém informações reais e anonimizadas de mais de 100 mil pedidos realizados entre 2016 e 2018. A metodologia consistirá na importação e limpeza de múltiplas tabelas relacionais (pedidos, avaliações, produtos e geolocalização). Em seguida, realizaremos uma Análise Exploratória de Dados (EDA) focada em calcular a diferença entre o tempo estimado de entrega e o tempo real, cruzando esses dados com as notas de avaliação (1 a 5 estrelas) deixadas pelos clientes.
+
+### 1.3
+Técnica Adotada para Solucionar o Problema:  
+  
+A técnica: A principal técnica será a manipulação de dados para a criação de novas variáveis de tempo (ex: tempo_de_entrega, dias_de_atraso). Faremos a mesclagem (joins) das tabelas para conectar a nota do cliente aos dados de frete e região. Usaremos sumarizações estatísticas e visualizações gráficas (como gráficos de barras para regiões com mais atrasos e boxplots relacionando dias de atraso com a nota do pedido) para expor de forma clara (total ou parcialmente) os gargalos logísticos da plataforma.
+
+### 1.4
+Ajuda aos Potenciais Clientes da Análise:  
+  
+O impacto comercial: O cliente potencial dessa análise seria um gestor de plataforma de e-commerce (como a própria Olist), gerentes de logística ou vendedores parceiros. Os insights gerados permitirão que esses clientes:
+
+Identifiquem estados ou rotas específicas que precisam de novas parcerias de transporte.
+
+Ajustem os prazos de entrega estimados apresentados no site para gerenciar melhor a expectativa do consumidor final.
+
+Criem campanhas automáticas de retenção (como cupons de desconto) para clientes que o sistema identifique que sofrerão atrasos.  
+
+## 2. Pacotes Requeridos {.tabset}
+
+### 2.1
+Pacotes Utilizados:  
+   
+```{r packages, message=FALSE, warning=FALSE}
+# Carregando todos os pacotes necessários para a análise
+library(tidyverse)
+library(lubridate)
+library(DT)
+library(plotly)
+```
+
+### 2.2 {.tabset}
+Explicação do Propósito dos Pacotes:   
+   
+#### tidyverse
+
+Um ecossistema de pacotes (que inclui dplyr, ggplot2 e readr) que utilizaremos para realizar a importação dos arquivos .csv da Olist, manipulação, limpeza dos dados (como junção de tabelas e criação de variáveis) e criação de gráficos estáticos.
+
+#### lubridate
+
+Pacote essencial para este projeto, pois lidaremos com variáveis de tempo (datas e horas de aprovação do pedido, estimativa de entrega e entrega real). Ele nos ajudará a calcular a diferença de dias entre essas datas para descobrir os atrasos logísticos.
+
+#### DT
+
+Utilizado para renderizar o conjunto de dados limpo e os resultados de forma condensada através de tabelas interativas e paginadas.
+
+#### plotly
+
+Será utilizado na etapa de análise exploratória para transformar nossos gráficos estáticos em visualizações interativas, permitindo explorar os dados de atraso por região com mais detalhes.  
+
+## 3. Preparação dos Dados {.tabset}
+
+### 3.1
+Origem dos Dados:  
+  
+Os dados utilizados neste projeto pertencem ao conjunto Brazilian E-Commerce Public Dataset by Olist. Eles consistem em informações reais e anonimizadas de comércio eletrônico, disponibilizados publicamente pela própria Olist, a maior loja de departamentos dos marketplaces brasileiros. O repositório oficial em que os dados originais foram obtidos está hospedado na plataforma Kaggle e pode ser acessado através do seguinte hiperlink: [Brazilian E-Commerce Public Dataset by Olist (Kaggle).](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
+
+### 3.2 {.tabset}
+Detalhamento dos Dados da Fonte:  
+  
+#### Propósito Original dos Dados
+
+Os dados refletem operações comerciais reais do e-commerce brasileiro. A Olist, que atua como uma loja de departamentos conectando pequenas empresas a grandes marketplaces (como Mercado Livre, B2W, etc.), coletou esses dados através do seu sistema logístico e de vendas. O propósito original da divulgação pública desse conjunto (disponibilizado no Kaggle) foi educacional: a empresa o liberou para que a comunidade de Ciência de Dados pudesse praticar modelagem, análise de negócios e visualização com dados reais e não mascarados do mercado brasileiro.
+
+#### Período de Coleta
+
+Os dados não representam uma "fotografia" de um único momento, mas sim um registro contínuo (série histórica). As informações abrangem mais de 100 mil pedidos realizados no período entre setembro de 2016 e outubro de 2018.
+
+#### Estrutura e Quantidade de Variáveis
+
+Diferente de conjuntos de dados simples que possuem apenas uma tabela, os dados originais da Olist foram disponibilizados no formato de um banco de dados relacional, divididos em 9 arquivos CSV separados para garantir a integridade da informação.
+Ao todo, o conjunto original possui cerca de 52 variáveis (colunas) distribuídas entre essas tabelas.
+
+#### Peculiaridades e NA's
+
+Por ser um conjunto de dados do mundo real, ele possui várias peculiaridades que justificam um pré-processamento cuidadoso:
+
+Privacidade e Anonimização: Para proteger a identidade dos clientes e vendedores parceiros, os IDs são sequências alfanuméricas mascaradas (ex: d479a6b142994afdd22a36b3db6d4f57).
+
+Registros de Valores Ausentes em Datas: A tabela de pedidos (orders) possui muitos valores do tipo NA (ausentes) nas colunas de data de entrega. Isso não é um erro do sistema, mas uma peculiaridade do negócio: pedidos com status de "cancelado" ou "indisponível" logicamente não possuem uma data de entrega preenchida.
+
+Valores Ausentes em Avaliações: Na tabela de avaliações, a grande maioria das variáveis de "título do comentário" e "mensagem do comentário" está vazia (registradas como valores em branco ou NA). Isso ocorre porque a plataforma permite que o usuário deixe apenas a nota em estrelas, sem a obrigatoriedade de escrever um texto.
+
+Inconsistência de Categorias: A variável de categorias de produtos na tabela original possui nomes em português com formatações variadas (uso de underline no lugar de espaços, como cama_mesa_banho), exigindo limpeza e padronização das strings.
+
+### 3.3 {.tabset}
+Etapas de Importação e Limpeza de Dados: 
+  
+Para garantir que a análise do impacto dos atrasos logísticos seja precisa, segui um processo lógico de estruturação dos dados brutos:
+
+#### 1
+
+Importação:  
+<br>
+Inicialmente, importei três tabelas principais do banco de dados (Pedidos, Itens e Avaliações) usando a função read_csv() do pacote readr. Selecionando apenas os arquivos estritamente necessários para a nossa declaração do problema, otimizando o processamento.
+
+#### 2
+
+Mesclagem de Dados (Joins):   
+<br>
+Como a base original é relacional, realizei a junção das tabelas através da função left_join, utilizando a chave primária order_id. Executando essa atividade para unir as notas de avaliação dos clientes aos respectivos dados de frete e status de entrega, consolidando todas as informações em um único data frame analítico.
+
+#### 3
+
+Conversão de Tipos de Dados:  
+<br>
+Durante a inspeção inicial, notei que as variáveis de data (como order_estimated_delivery_date e order_delivered_customer_date) foram importadas no formato de texto (caracteres). Realizei a conversão dessas colunas para o formato de data/hora padrão (datetime) utilizando o pacote lubridate. Essa transformação foi fundamental, pois é preciso realizar cálculos matemáticos de subtração entre essas datas.
+
+#### 4
+
+Filtragem e Tratamento de Valores Ausentes (NAs):  
+<br>
+Identifiquei a presença de valores ausentes (NA) nas colunas de data de entrega. Ao investigar o motivo, constatei que tratavam-se de pedidos com status "cancelado" ou "indisponível". Como o foco do nosso estudo exige a medição de tempo de mercadorias que efetivamente chegaram ao destino, optei por filtrar a base, mantendo estritamente os pedidos com status delivered (entregue). Isso limpou os valores ausentes de forma lógica e justificada.
+
+#### 5
+
+Criação de Variáveis:  
+<br>
+Por fim, para que a análise exploratória seja possível, criei a variável dias_de_atraso. Ela foi concebida a partir da diferença entre a data real em que o cliente recebeu o produto e a data estimada informada no momento da compra. Essa variável não existia na base de origem e é o núcleo da nossa investigação.
+
+#### Código
+
+```{r limpeza_dados, echo=TRUE, message=FALSE, warning=FALSE}
+# 1. IMPORTAÇÃO
+
+  # Lendo os arquivos CSV originais da Olist
+  pedidos <- read_csv("olist_orders_dataset.csv")
+  itens <- read_csv("olist_order_items_dataset.csv")
+  avaliacoes <- read_csv("olist_order_reviews_dataset.csv")
+
+# 2. MESCLAGEM DE DADOS (JOINS)
+
+  # Unindo as três tabelas usando a chave primária "order_id"
+  dados_mesclados <- pedidos %>%
+  left_join(itens, by = "order_id") %>%
+  left_join(avaliacoes, by = "order_id")
+
+# 3, 4 e 5. CONVERSÃO, FILTRAGEM E CRIAÇÃO DE VARIÁVEIS
+
+  # Aplicando o pipeline de limpeza
+  dados_limpos <- dados_mesclados %>%
+  
+  # Filtrar apenas os pedidos que foram de fato entregues
+  filter(order_status == "delivered") %>%
+  
+  # Converter as colunas de data (que vieram como texto) para o formato datetime
+  mutate(
+    data_estimada = ymd_hms(order_estimated_delivery_date),
+    data_entrega = ymd_hms(order_delivered_customer_date)
+  ) %>%
+  
+  # Remover qualquer pedido que, mesmo "entregue", tenha ficado com a data de entrega vazia (NA)
+  drop_na(data_entrega) %>%
+  
+  # Criar a nova variável calculando a diferença em dias
+  # (Se o número for positivo, atrasou. Se for negativo, chegou adiantado)
+  mutate(
+    dias_de_atraso = as.numeric(difftime(data_entrega, data_estimada, units = "days"))
+  ) %>%
+  
+  # Selecionar apenas as colunas que realmente importam para a nossa análise final
+  select(
+    order_id, 
+    customer_id, 
+    data_estimada, 
+    data_entrega, 
+    dias_de_atraso, 
+    review_score, 
+    price, 
+    freight_value
+  )
+```
+  
+### 3.4
+
+Conjunto de Dados Final  
+  
+Após a execução das etapas de filtragem, tratamento de dados omissos e criação de novas variáveis, o conjunto de dados final ficou estruturado de forma otimizada para a análise. 
+  
+Para cumprir o requisito de não apresentar um data frame extenso (superior a 200 linhas) e expor os dados de forma condensada, utiliza-se o pacote `DT` para gerar uma tabela interativa. Abaixo é apresentada uma pré-visualização paginada contendo as primeiras 100 observações do painel analítico limpo:
+
+```{r tabela_interativa, echo=TRUE}
+# Apresentação interativa e condensada das primeiras 100 linhas do dataset limpo
+datatable(
+  head(dados_limpos, 100), 
+  options = list(
+    pageLength = 10,     # Define que cada página da tabela terá apenas 10 linhas
+    searchHighlight = TRUE, # Destaca visualmente o texto que for pesquisado
+    scrollX = TRUE       # Ativa a barra de rolagem lateral caso o ecrã seja pequeno
+  ),
+  rownames = FALSE,      # Remove a coluna automática de índices (0, 1, 2...)
+  caption = "Tabela 1: Visualização condensada e interativa do conjunto de dados final."
+)
+```
+
+### 3.5
+Resumo das Variáveis de Interesse  
+  
+Para compreender a estrutura final dos dados que guiarão a análise exploratória, elaborou-se o dicionário de dados abaixo. Ele descreve as principais variáveis mantidas no conjunto `dados_limpos`, que são fundamentais para responder à nossa declaração do problema sobre atrasos logísticos e satisfação do cliente.
+
+| Variável | Tipo | Descrição |
+| :--- | :--- | :--- |
+| **order_id** | Caractere | Identificador único e exclusivo de cada pedido. |
+| **customer_id** | Caractere | Identificador único do cliente que realizou a compra. |
+| **data_estimada** | Data/Hora | Data e hora limite prometida para a entrega no momento da compra. |
+| **data_entrega** | Data/Hora | Data e hora exata em que o produto foi entregue ao cliente. |
+| **dias_de_atraso** | Numérico | Variável calculada: diferença em dias entre a data de entrega real e a estimada. Valores positivos indicam atraso na entrega; valores negativos indicam entrega antecipada. |
+| **review_score** | Numérico | Nota de satisfação atribuída pelo cliente ao pedido (escala contínua de 1 a 5). |
+| **price** | Numérico | Preço do produto adquirido (em Reais). |
+| **freight_value** | Numérico | Valor cobrado pelo frete da mercadoria (em Reais). |
+
+  
+
+**Panorama Estatístico Consolidado:**
+
+O nosso conjunto de dados limpo e filtrado possui agora um total de **`r nrow(dados_limpos)`** observações válidas (pedidos entregues) e **`r ncol(dados_limpos)`** variáveis. Ao avaliar a variável central do nosso estudo logístico (`dias_de_atraso`), constata-se uma média geral de **`r round(mean(dados_limpos$dias_de_atraso, na.rm = TRUE), 2)`** dias de diferença em relação à estimativa da plataforma. Em paralelo, a métrica de satisfação do cliente (`review_score`) manteve sua consistência, variando entre o mínimo de **`r min(dados_limpos$review_score, na.rm = TRUE)`** e o máximo de **`r max(dados_limpos$review_score, na.rm = TRUE)`** estrelas na amostra final.
+
+
+   
+## {-}  
+  
+##### Nome do aluno(a): Jair Barbosa Santana; E-mail: Jairbse7@gmail.com; Disciplina: Computação Para Análise de Dados.
