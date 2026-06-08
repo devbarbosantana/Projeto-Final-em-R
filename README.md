@@ -101,4 +101,4 @@ Os insights gerados por esta análise são direcionados a:
 
 ---
 
-*Projeto desenvolvido como requisito parcial da disciplina Computação Para Análise de Dados — 2025.*
+*Projeto desenvolvido como requisito parcial da disciplina Computação Para Análise de Dados — 2026.*
